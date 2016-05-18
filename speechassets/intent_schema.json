@@ -1,0 +1,13 @@
+{
+  "intents": [
+    {
+      "intent": "RequesSitterIntent",
+      "slots": [
+        {
+          "name": "Date",
+          "type": "AMAZON.DATE"
+        }
+      ]
+    }
+  ]
+}

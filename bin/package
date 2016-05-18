@@ -1,0 +1,127 @@
+#!/usr/bin/env python
+"""
+Script will create an AWS Lambda function deployment.
+
+It expects there to be a deployments directory and it will create a
+deployment of the form:
+
+deployment_n
+
+where n is incremented for each deployment based on the existing deployment
+directories
+
+"""
+import errno
+import logging
+import os
+import pip
+import shutil
+import zipfile
+
+from distutils import dir_util
+from distutils.errors import DistutilsFileError
+
+PROJECT_DIR = os.path.realpath(os.path.join(os.path.dirname(__file__), '..'))
+
+logger = logging.getLogger(__name__)
+root_deployments_dir = os.path.join(PROJECT_DIR, 'dist')
+
+# List of files that should be included in the deployment. Only the files listed
+# here, and the libraries in the requirements.txt file will be included in the
+# deployment.
+deployment_files = [
+    'skills/',
+    'main.py',
+]
+
+
+def read_requirements():
+    requirements_file = os.path.join(PROJECT_DIR, 'requirements.txt')
+    with open(requirements_file, 'r') as f:
+        install_requirements = f.readlines()
+    return install_requirements
+
+
+def get_immediate_subdirectories(a_dir):
+    return [
+        name for name in os.listdir(a_dir)
+        if os.path.isdir(os.path.join(a_dir, name))
+    ]
+    
+
+def make_deployment_dir():
+    all_deployment_directories = get_immediate_subdirectories(root_deployments_dir)
+    max_deployment_number = -1
+
+    for deployment_dir in all_deployment_directories:
+        dir_name_elements = deployment_dir.split('_')
+        if len(dir_name_elements) == 2:
+            if int(dir_name_elements[1]) > max_deployment_number:
+                max_deployment_number = int(dir_name_elements[1])
+
+    if max_deployment_number == -1:
+        max_deployment_number = 0
+
+    deployment_name = 'dist_{0}'.format(max_deployment_number + 1)
+    new_deployment_dir_path = '{0}/{1}'.format(root_deployments_dir, deployment_name)
+
+    if not os.path.exists(new_deployment_dir_path):
+        os.mkdir(new_deployment_dir_path)
+
+    return (new_deployment_dir_path, deployment_name)
+
+
+def install_requirements(deployment_requirements, deployment_dir):
+    for requirement in deployment_requirements:
+        if requirement.strip():
+            pip.main(['install', requirement, '-t', deployment_dir, '-q'])
+
+
+def copy_deployment_files(dest):
+    for src in deployment_files:
+        try:
+            dir_util.copy_tree(src, '%s/%s' % (dest, src))
+        except DistutilsFileError:
+            shutil.copy(src, dest)
+
+
+def zipdir(dir_path=None, zip_file_path=None, include_dir_in_zip=False):
+    if not zip_file_path:
+        zip_file_path = dir_path + '.zip'
+
+    if not os.path.isdir(dir_path):
+        raise OSError(
+            'dir_path argument must point to a directory. '
+            '"%s" does not.' % dir_path
+        )
+
+    parent_dir, dir_to_zip = os.path.split(dir_path)
+
+    # Little nested function to prepare the proper archive path
+    def trim_path(path):
+        archive_path = path.replace(parent_dir, '', 1)
+        if parent_dir:
+            archive_path = archive_path.replace(os.path.sep, '', 1)
+        if not include_dir_in_zip:
+            archive_path = archive_path.replace(dir_to_zip + os.path.sep, '', 1)
+        return os.path.normcase(archive_path)
+
+    out_file = zipfile.ZipFile(zip_file_path, 'w', compression=zipfile.ZIP_DEFLATED)
+    
+    for (archive_dir_path, dir_names, filenames) in os.walk(dir_path):
+        for filename in filenames:
+            file_path = os.path.join(archive_dir_path, filename)
+            out_file.write(file_path, trim_path(file_path))
+
+        if not filenames and not dir_names:
+            zip_info = zipfile.ZipInfo(trim_path(archive_dir_path) + '/')
+            out_file.writestr(zip_info, '')
+
+    out_file.close()
+
+
+if __name__ == '__main__':
+    deployment_dir, deployment_name = make_deployment_dir()
+    copy_deployment_files(deployment_dir)
+    install_requirements(read_requirements(), deployment_dir)
+    zipdir(deployment_dir, '{0}/{1}.zip'.format(root_deployments_dir, deployment_name))
