@@ -1,15 +1,22 @@
 # -*- coding: utf-8 -*-
 import logging
+import six
 
-from utils import camel_to_snake, tupperware
+from utils import camel_to_snake
 
 logger = logging.getLogger(__name__)
 
 
-def create_speech_object(text):
+def create_speech_object(options):
+    if isinstance(options, six.string_types):
+        options = {
+            'speech': options,
+            'type': AlexaSkill.speech_output_type.get('PLAIN_TEXT'),
+        }
+        
     return {
-        'type': 'PlainText',
-        'text': text,
+        'text': options.get('speech', options),
+        'type': options.get('type', AlexaSkill.speech_output_type.get('PLAIN_TEXT')),
     }
 
 
@@ -44,9 +51,19 @@ def create_speechlet_object(
     }
 
     if session and session.attributes:
-        result['sessionAttributes'] = session.attributes
+        result['sessionAttributes'] = dict(session.attributes)
 
     return result
+
+
+def preprocess_event(event):
+    from skills.utils import ProtectedDict, tupperware
+
+    session = event.get('session')
+    if session:
+        session.update({'attributes': ProtectedDict(session.get('attributes', {}))})
+
+    return tupperware(event)
 
 
 class Response():
@@ -76,7 +93,7 @@ class Response():
             self.session,
             speech_output,
             reprompt=reprompt,
-            end_essopm=False,
+            end_session=False,
         )
 
     def ask_with_card(self, speech_output, reprompt, title, content):
@@ -106,7 +123,7 @@ class AlexaSkill(object):
     def process_launch_request(self, event, context, response):
         return self.on_launch(event.request, event.session, response)
 
-    def process_session_ended_request(self, event, context):
+    def process_session_ended_request(self, event, context, *args):
         return self.on_session_ended(event.request, event.session)
 
     def on_intent(self, request, session, response):
@@ -129,7 +146,7 @@ class AlexaSkill(object):
 
     def execute(self, event, context):
         try:
-            event = tupperware(event)
+            event = preprocess_event(event)
             session_app_id = event.session.application.applicationId
             logger.info('Session applicationId %s' % session_app_id)
 
@@ -137,9 +154,6 @@ class AlexaSkill(object):
             if self.app_id and session_app_id != self.app_id:
                 logger.error('The application ids do not match %s and %s' % (session_app_id, self.app_id))
                 raise 'Invalid app_id'
-
-            if not hasattr(event.session, 'attributes'):
-                setattr(event.session, 'attributes', {})
 
             if event.session.new:
                 self.on_session_started(event.request, event.session)

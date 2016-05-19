@@ -1,13 +1,55 @@
 {
   "intents": [
     {
-      "intent": "RequesSitterIntent",
+      "intent": "RequestSitterIntent",
       "slots": [
         {
           "name": "Date",
           "type": "AMAZON.DATE"
+        },
+        {
+          "name": "Start",
+          "type": "AMAZON.TIME"
+        },
+        {
+          "name": "End",
+          "type": "AMAZON.TIME"
+        },
+        {
+          "name": "Duration",
+          "type": "AMAZON.DURATION"
         }
       ]
+    },
+    {
+      "intent": "DialogRequestSitterIntent",
+      "slots": [
+        {
+          "name": "Date",
+          "type": "AMAZON.DATE"
+        },
+        {
+          "name": "Start",
+          "type": "AMAZON.TIME"
+        },
+        {
+          "name": "End",
+          "type": "AMAZON.TIME"
+        },
+        {
+          "name": "Duration",
+          "type": "AMAZON.DURATION"
+        }
+      ]
+    },
+    {
+      "intent": "AMAZON.HelpIntent"
+    },
+    {
+      "intent": "AMAZON.StopIntent"
+    },
+    {
+      "intent": "AMAZON.CancelIntent"
     }
   ]
 }

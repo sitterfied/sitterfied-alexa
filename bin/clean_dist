@@ -1,0 +1,27 @@
+#!/usr/bin/env python
+"""
+Clean the contents of the distribution directory.
+
+"""
+import os
+import shutil
+
+PROJECT_DIR = os.path.realpath(os.path.join(os.path.dirname(__file__), '..'))
+
+root_deployments_dir = os.path.join(PROJECT_DIR, 'dist')
+
+
+def clean_deployments_dir():
+    for f in os.listdir(root_deployments_dir):
+        file_path = os.path.join(root_deployments_dir, f)
+        try:
+            if os.path.isfile(file_path):
+                os.unlink(file_path)
+            elif os.path.isdir(file_path):
+                shutil.rmtree(file_path)
+        except Exception as e:
+            pass
+
+
+if __name__ == '__main__':
+    clean_deployments_dir()

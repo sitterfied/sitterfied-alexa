@@ -1,0 +1,4 @@
+[nosetests]
+rednose=1
+verbosity=2
+

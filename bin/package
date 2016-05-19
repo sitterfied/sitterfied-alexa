@@ -11,7 +11,6 @@ where n is incremented for each deployment based on the existing deployment
 directories
 
 """
-import errno
 import logging
 import os
 import pip
@@ -45,7 +44,7 @@ def read_requirements():
 def get_immediate_subdirectories(a_dir):
     return [
         name for name in os.listdir(a_dir)
-        if os.path.isdir(os.path.join(a_dir, name))
+        if os.path.isfile(os.path.join(a_dir, name))
     ]
     
 
@@ -56,8 +55,9 @@ def make_deployment_dir():
     for deployment_dir in all_deployment_directories:
         dir_name_elements = deployment_dir.split('_')
         if len(dir_name_elements) == 2:
-            if int(dir_name_elements[1]) > max_deployment_number:
-                max_deployment_number = int(dir_name_elements[1])
+            elements = dir_name_elements[1].split('.')
+            if int(elements[0]) > max_deployment_number:
+                max_deployment_number = int(elements[0])
 
     if max_deployment_number == -1:
         max_deployment_number = 0
@@ -121,7 +121,16 @@ def zipdir(dir_path=None, zip_file_path=None, include_dir_in_zip=False):
 
 
 if __name__ == '__main__':
+    # Create the target deployment directory
     deployment_dir, deployment_name = make_deployment_dir()
+
+    # Copy local deployment files to the deployment directory
     copy_deployment_files(deployment_dir)
+
+    # Install libraries specified in the requirements file
     install_requirements(read_requirements(), deployment_dir)
+
+    # Zip up the contents of the deployments directory
     zipdir(deployment_dir, '{0}/{1}.zip'.format(root_deployments_dir, deployment_name))
+    # Remove the source of the created archive file
+    shutil.rmtree(deployment_dir)
